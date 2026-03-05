@@ -120,3 +120,304 @@ You are an investment analyst. Your job is to assist in investment analysis, cre
 - After, scroll to the top and **Save**
 
 - The instructions for the Generative AI Investment Analyst Tool outlines a comprehensive framework designed to assist in investment analysis. This tool is tasked with creating tailored portfolios of companies based on specific industry criteria, conducting thorough research on these companies, and summarizing relevant financial documents. Additionally, the tool formats and sends professional emails containing the portfolios and document summaries. The process involves continuous adaptation to user feedback and maintaining a contextual understanding of ongoing requests to ensure accurate and efficient responses.
+
+- - Next, we will add an action group. Scroll down to `Action groups` then select ***Add***.
+
+- Call the action group `PortfolioCreator-actions`. We will set the `Action group type` to ***Define with API schemas***. `Action group invocations` should be set to ***select an existing Lambda function***. For the Lambda function, select `PortfolioCreator-actions`.
+
+- For the `Action group Schema`, we will choose ***Define via in-line schema editor***. Replace the default schema in the **In-line OpenAPI schema** editor with the schema provided below. You can also retrieve the schema from the repo [here](https://github.com/build-on-aws/bedrock-agent-txt2sql/blob/main/schema/athena-schema.json). After, select ***Add***.
+`(This API schema is needed so that the bedrock agent knows the format structure and parameters needed for the action group to interact with the Lambda function.)`
+
+```schema
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "PortfolioCreatorAssistant API",
+    "description": "API for creating a company portfolio, search company data, and send summarized emails",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/companyResearch": {
+      "post": {
+        "description": "Get financial data for a company by name",
+        "operationId": "companyResearch",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Name of the company to research",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with company data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyData"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/createPortfolio": {
+      "post": {
+        "description": "Create a company portfolio of top profit earners by specifying number of companies and industry",
+        "operationId": "createPortfolio",
+        "parameters": [
+          {
+            "name": "numCompanies",
+            "in": "query",
+            "description": "Number of companies to include in the portfolio",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "industry",
+            "in": "query",
+            "description": "Industry sector for the portfolio companies",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with generated portfolio",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Portfolio"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sendEmail": {
+      "post": {
+        "description": "Send an email with FOMC search summary and created portfolio",
+        "operationId": "sendEmail",
+        "parameters": [
+          {
+            "name": "emailAddress",
+            "in": "query",
+            "description": "Recipient's email address",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "email"
+            }
+          },
+          {
+            "name": "fomcSummary",
+            "in": "query",
+            "description": "Summary of FOMC search results",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "portfolio",
+            "in": "query",
+            "description": "Details of the created stock portfolio",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Portfolio"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Email sent successfully",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "description": "Confirmation message"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CompanyData": {
+        "type": "object",
+        "description": "Financial data for a single company",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Company name"
+          },
+          "expenses": {
+            "type": "string",
+            "description": "Annual expenses"
+          },
+          "revenue": {
+            "type": "number",
+            "description": "Annual revenue"
+          },
+          "profit": {
+            "type": "number",
+            "description": "Annual profit"
+          }
+        }
+      },
+      "Portfolio": {
+        "type": "object",
+        "description": "Stock portfolio with specified number of companies",
+        "properties": {
+          "companies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompanyData"
+            },
+            "description": "List of companies in the portfolio"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+- This API schema defines three primary endpoints, `/companyResearch`, `/createPortfolio`, and `/sendEmail` detailing how to interact with the API, the required parameters, and the expected responses.
+
+### Step 5: Setup Knowledge Base with Bedrock Agent
+
+- While on the Bedrock agent console, scroll down to ***Knowledge base*** and select Add. When integrating the KB with the agent, you will need to provide basic instructions on how to handle the knowledge base. For example, use the following:
+  
+  ```text
+  Use this knowledge base when a user asks about data, such as economic trends, company financial statements, or the outcomes of the Federal Open Market Committee meetings.
+  ```
+
+![AgentKB](images/Agent-KB.png)
+
+- Review your input, then select ***Add***.
+
+- Scroll to the top and select ***Prepare*** so that the changes made are updated. Then select ***Save and exit***.
+
+### Step 6: Create an alias
+
+- Create an alias (new version), and choose a name of your liking. After it's done, make sure to copy your **Alias ID** and **Agent ID**. This will be required while launching Steamlit UI
+
+![Alias](images/Alias.png)
+
+![Aliases](images/Aliases.png)
+
+## Step 7: Testing the Setup
+### Testing the Knowledge Base
+- While in the Bedrock console, select ***Knowledge base*** under the **Build** tab, then the KB you created. Scroll down to the Data source section, and make sure to select the **Sync** button.
+
+![KB sync](images/Sync.png)
+
+- Once Synce Completed click on **Test Knowledge Base** on Top right. Choose the **Anthropic Claude 3 Haiku model**, then select **Apply**.
+
+![TestKB sync](images/Test-KB.png)
+
+- Test Prompts:
+  ```text
+  Give me a summary of financial market developments and open market operations in January 2023.
+  ```
+  ```text
+  Can you provide information about inflation or rising prices?
+  ```
+  ```text
+  What can you tell me about the Staff Review of the Economic & Financial Situation?
+  ```
+
+![KBprompt sync](images/KB-prompt.png)
+
+### Testing the Bedrock Agent
+- While in the Bedrock console, select ***Agents*** under the **Build** tab, then the agent you created. You should be able to enter prompts in the user interface provided to test your knowledge base and action groups from the agent.
+
+![Agent test](images/Agent-Prompt.png)
+
+- Example prompts for **Knowledge base**:
+  ```text
+  Give me a summary of financial market developments and open market operations in January 2023
+  ```
+  ```text
+  Tell me the participants view on economic conditions and economic outlook
+  ```
+  ```text
+  Provide any important information I should know about inflation, or rising prices
+  ```
+  ```text
+  Tell me about the Staff Review of the Economic & financial Situation
+  ```
+
+- Example prompts for **Action groups**:
+```text
+  Create a portfolio with 3 companies in the real estate industry
+```
+```text
+  Create portfolio of 3 companies that are in the technology industry
+```
+```text
+  Create a new investment portfolio of companies
+```
+```text
+  Do company research on TechStashNova Inc.
+```  
+
+## Step 8: Setup and Run Streamlit App on EC2
+1. **Obtain CF template to launch the streamlit app**: Download the Cloudformation template from StreamLit-CF folder. This template will be used to deploy an EC2 instance that has the Streamlit code to run the UI.  Please due check it is being created in us-west-2 region.
+
+2. **Deploy template via Cloudformation**:
+   - In your mangement console, search, then go to the CloudFormation service.
+   - Create a stack with new resources (standard)
+   - Prepare template: Choose existing template -> Specify template: Upload a template file -> upload the template donaloaded from the previous step. 
+   - Next, Provide a stack name like ***ec2-streamlit***. Keep the instance type on the default of t3.small, then go to Next
+   - On the ***Configure stack options*** screen, leave every setting as default, then go to Next. 
+   - Scroll down to the capabilities section, and acknowledge the warning message before submitting. 
+   - Once the stack is complete, go to the next step.
+
+3. **Edit the app to update agent IDs**:
+   - Navigate to the EC2 instance management console. Under instances, you should see `EC2-Streamlit-App`. Select the checkbox next to it, then connect to it via `EC2 Instance Connect`.
+
+   ![ec2 connect clip](images/EC2.png)
+
+   - Next, use the following command  to edit the invoke_agent.py file:
+     ```bash
+     sudo vi app/streamlit_app/invoke_agent.py
+     ```
+
+   - Press ***i*** to go into edit mode. Then, update the ***AGENT ID*** and ***Agent ALIAS ID*** values. 
+   
+   ![file_edit](images/file_edit.png)
+   
+   - After, hit `Esc`, then save the file changes with the following command:
+     ```bash
+     :wq!
+     ```   
+
+   - Now, start the streamlit app by running the following command:
+     ```bash
+     streamlit run app/streamlit_app/app.py
+     ```
+  
+   - You should see an external URL. Copy & paste the URL into a web browser to start the streamlit application.
+
+![External IP](images/external_ip.png)
+
+
+   - Once the app is running, please test some of the sample prompts provided. (On 1st try, if you receive an error, try again.)
+
+![Running App ](images/running_app.png)
