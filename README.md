@@ -35,7 +35,7 @@ This README will walk you through the step-by-step process to set up the Amazon 
 
 Give {alias} in bucket name as some unique text
 
-Once bucket create successfully. Upload the pdf files from S3-data directory in this repository to S3 bucket.
+Once bucket create successfully. Upload the pdf files from S3docs directory in this repository to S3 bucket.
 These files are the Federal Open Market Committee documents describing monetary policy decisions made at the Federal Reserved board meetings. The documents include discussions of economic conditions, policy directives to the Federal Reserve Bank of New York for open market operations, and votes on the federal funds rate.
 
 ### Step 2: Knowledge Base Setup in Bedrock Agent
@@ -65,9 +65,31 @@ Once your Knowledge Base is created successfully. you can that listed in Konwled
 
  ![Kb-done](images/KB-done.png)
  
+### Step 3: Lambda Function Configuration
+- Create a Lambda function (Python 3.14) for the Bedrock agent's action group. We will call this Lambda function `PortfolioCreator-actions`.
 
+![Lambda](images/Lambda-Create.png)-  
 
+- Copy the python code from the file **ActionLambda.py** into your Lambda function.
 
+- Then, select **Deploy** in the tab section of the Lambda console.
 
+- Next, apply a resource policy to the Lambda to grant Bedrock agent access. To do this, we will switch the top tab from **code** to **configuration** and the side tab to **Permissions**. Then, scroll to the **Resource-based policy statements** section and click the **Add permissions** button.
+
+![Permissions config](images/permissions_config.png)
+
+![Lambda resource policy create](images/lambda_resource_policy_create.png)
+
+- Select ***AWS service***, then use the following settings to configure the resource based policy:
+
+* ***Service*** - `Other`
+* ***Statement ID*** - `allow-bedrock-agent`
+* ***Principal*** - `bedrock.amazonaws.com`
+* ***Source ARN*** - `arn:aws:bedrock:us-west-2:{account-id}:agent/*` - (Please note, AWS recommends least privilage so only an allowed agent can invoke this Lambda function. A * at the end of the ARN grants any agent in the account access to invoke this Lambda. Ideally, we would not use this in a production environment.)
+* ***Action*** - `lambda:InvokeFunction`
+
+![Lambda resource policy](images/lambda_resource_policy.png)
+
+- Once your configurations look similar to the above screenshot, select ***Save*** at the bottom.
 
 
