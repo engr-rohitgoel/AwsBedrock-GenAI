@@ -7,25 +7,62 @@ This repository demonstrates setup process of an application that will use an ag
 
 ![Diagram](images/diagram.png)
 
-## The solution consists of:
-
-AWS S3 bucket which will be used to store the domain data that the Agent will later use to answer domain specifc questions
-
-Amazon Bedrock Knowledge Base with S3 Data Source, S3 Vector Database, Titan Embedding Model
-
-AWS Lambda function which serves as a backend API for the AI agent
-
-Amazon Bedrock Agent and Action Group
-
-EC2 Instance to run Streamlit UI
-
-
 ## High Level Design.
 
 ## Overview
-In this project, we will set up an Amazon Bedrock agent with an action group that dynamically creates an investment company portfolio based on specific parameters. The agent also has Q&A capabilities for Federal Open Market Committee (FOMC) reports, leveraging a Streamlit framework for the user interface. 
+In this project, we will set up an Amazon Bedrock agent with an action group that dynamically creates an investment company portfolio based on specific parameters. The agent also has Q&A capabilities for Federal Open Market Committee (FOMC) reports, leveraging a Streamlit framework for the user interface. Below is more details on components involved in the Architecture:
+
+-  S3 bucket is created and pdf documents are uploaded into the bucket.
+  
+-  Knowledge base is created in AWS Bedrock with S3 bucket as data source
+  
+-  Documents are split into smaller pieces using chunking by Bedrock during ingestion to improve retrieval accuracy.
+  
+-  Each chunk is converted into a vector embedding using an embedding model.
+  
+-  These embeddings are stored in a vector database(S3 Vector Database) for semantic search.
+  
+-  Lambda is created which can be invoked by Bedrock agent . This Lambda function serves as a backend API for the AI agent
+   that will be created to access and retrieve company-related data. This Lambda Supports 3 API's
+   /companyResearch → find one company by exact name
+   /createPortfolio → return top N companies for an industry
+   /sendEmail → send summary and portfolio by SES email
+
+-  Bedrock Agent is created with chosen LLM along with Action group.
+
+-  Action group points to Lambda created.
+
+-  EC2 instance which will run Streamlit UI.
 
 This README will walk you through the step-by-step process to set up the Amazon Bedrock GenAI agent manually using the AWS Console.
+
+## End to End Flow
+
+1. User asks something in natural language
+   Example:
+   “Create a portfolio with 3 companies in the real estate industry”
+
+2. Bedrock Agent interprets the prompt
+
+3. Agent will query the knowledge base / vector database first
+   This is for retrieval of relevant context
+
+4. Based on action group instructions + action group schema, agent decides to call a tool/action
+
+ Lambda gets invoked with structured parameters extracted by the agent
+
+ Lambda performs business logic:
+
+ - search company
+
+ - create portfolio
+
+ - send email
+
+5. Lambda sends structured response back to Bedrock Agent
+
+6. Agent uses Lambda output to generate final user-facing reply
+
 
 ## Setup
 
